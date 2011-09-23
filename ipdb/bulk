@@ -1,0 +1,5 @@
+#!/bin/bash
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=Server --url=https://ipdburt.appspot.com/remote_api --filename=server.csv
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=Player --url=https://ipdburt.appspot.com/remote_api --filename=player.csv
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=PlayerAlias --url=https://ipdburt.appspot.com/remote_api --filename=alias.csv
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=AliasIP --url=https://ipdburt.appspot.com/remote_api --filename=aliasip.csv
