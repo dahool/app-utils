@@ -411,8 +411,8 @@ connection = connectionForURI('mysql://test:test@166.40.231.124/test')
 #sqlhub.processConnection = trans
 sqlhub.processConnection = connection
 
-#import_server('server.csv')
-#import_player('player.csv')
+import_server('server.csv')
+import_player('player.csv')
 create_baninfo('player.csv')
-#import_alias('alias.csv')
-#import_aliasip('aliasip.csv')
+import_alias('alias.csv')
+import_aliasip('aliasip.csv')
