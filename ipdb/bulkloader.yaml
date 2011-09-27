@@ -21,6 +21,7 @@ python_preamble:
 - import: google.appengine.ext.db
 - import: google.appengine.api.datastore
 - import: google.appengine.api.users
+- import: bulk_helper
 
 transformers:
 
@@ -31,7 +32,8 @@ transformers:
   property_map:
     - property: __key__
       external_name: key
-      export_transform: transform.key_id_or_name_as_string
+      #export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: count
       external_name: count
@@ -59,7 +61,8 @@ transformers:
       external_name: player
       # Type: Key Stats: 89803 properties of this type in this kind.
       import_transform: transform.create_foreign_key('Player')
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
       
 - kind: PlayerAlias
   connector: csv
@@ -68,7 +71,8 @@ transformers:
   property_map:
     - property: __key__
       external_name: key
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: count
       external_name: count
@@ -93,13 +97,15 @@ transformers:
       external_name: player
       # Type: Key Stats: 89803 properties of this type in this kind.
       import_transform: transform.create_foreign_key('Player')
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: server
       external_name: server
       # Type: Key Stats: 89803 properties of this type in this kind.
       import_transform: transform.create_foreign_key('Server')
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: updated
       external_name: updated
@@ -115,7 +121,8 @@ transformers:
   property_map:
     - property: __key__
       external_name: key
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: baninfo
       external_name: baninfo
@@ -168,7 +175,8 @@ transformers:
       external_name: server
       # Type: Key Stats: 53748 properties of this type in this kind.
       import_transform: transform.create_foreign_key('Server')
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: updated
       external_name: updated
@@ -184,7 +192,8 @@ transformers:
   property_map:
     - property: __key__
       external_name: key
-      export_transform: transform.key_id_or_name_as_string
+      # export_transform: transform.key_id_or_name_as_string
+      export_transform: bulk_helper.key_to_reverse_str
 
     - property: admin
       external_name: admin

@@ -2,6 +2,14 @@ import csv
 from sqlobject import *
 from sqlobject.sqlbuilder import *
 import datetime
+import re
+
+BANINFO_TEXT_PAT_FULL = re.compile('^(Baneado el)\s(?P<fecha>\d{2}/\d{2}/\d{4})\s(por)\s(?P<motivo>.*)\s(hasta el)\s(?P<hasta>\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})$')
+BANINFO_TEXT_PAT = re.compile('^(Baneado el)\s(?P<fecha>\d{2}/\d{2}/\d{4})\s(por)\s(?P<motivo>.*)$')
+BANINFO_TEXT_PERM = re.compile('^(Permanent banned since)\s(?P<fecha>\d{2}/\d{2}/\d{4})\.\s(Reason:)\s(?P<motivo>.*)$')
+BANINFO_TEXT_TEMP = re.compile('^(Temp banned since)\s(?P<fecha>\d{2}/\d{2}/\d{4})\s(for)\s(?P<duration>[\d\.{1}]+)\s(?P<periodo>\w*)\.\s(Reason:)\s(?P<motivo>.*)$')
+BANINFO_PAT = re.compile('^#(?P<tipo>\d)::(?P<fecha>\d{10})::(?P<admin>.*)::(?P<motivo>.*)::(?P<duration>[\d|\-1]*)$')
+BANINFO_N_PAT = re.compile('^#(?P<tipo>\w+)::(?P<fecha>\d{10})::(?P<duration>[\d|\-1]+)::(?P<motivo>.*)$')
 
 def transform_datetime(value):
     if value:
@@ -10,7 +18,7 @@ def transform_datetime(value):
     
 def bool_to_int(value):
     if value != None and value != '':
-        if value.lower == 'true':
+        if value.lower() == 'true':
             return 1
     return 0
     
@@ -19,9 +27,21 @@ def none_to_int(value):
         return 0
     return int(value)
 
+def normalize(value):
+    '''intentaremos matener la misma logica que la version java
+    durante la importacion'''
+    vals = [('@','a'),('`',''),('*',''),('<',''),('>',''),('&',''),
+            ('_',' '),('-',' '),('+',' '),('{',''),('}',''),("'",''),
+            ('|',''),('!',''),('[',''),(']',''),('.',''),(',',''),('#','')
+            (':',''),('0','o'),('1','i'),('3','e'),('4','a'),('5','s'),('7','t'),]
+    value = value.lower()
+    for r in vals:
+        value = value.replace(r[0],r[1])
+    return value
+    
 class Server(SQLObject):
     uid = StringCol()
-    gaekey = IntCol()
+    gaekey = StringCol()
     name = StringCol()
     admin = StringCol()
     address = StringCol()
@@ -35,7 +55,7 @@ class Server(SQLObject):
         
 class Player(SQLObject):
     guid = StringCol()
-    serverid = StringCol()
+    serverid = IntCol()
     nickname = StringCol()
     ip = StringCol()
     clientid = IntCol()
@@ -45,15 +65,26 @@ class Player(SQLObject):
     updated = TimestampCol()
     created = TimestampCol()
     note = TimestampCol()
-    gaekey = IntCol()
-    
+    gaekey = StringCol()
+
+class Penalty(SQLObject):
+    playerid = IntCol()
+    adminid = IntCol()
+    type = IntCol()
+    reason = StringCol()
+    duration = IntCol()
+    synced = BoolCol()
+    active = BoolCol()
+    updated = TimestampCol()
+    created = TimestampCol()
+        
 class Alias(SQLObject):
     playerid = IntCol()
     nickname = StringCol()
     count = IntCol()
     updated = TimestampCol()
     created = TimestampCol()
-    ngrams = StringCol()
+    normalized = StringCol()
     
 class AliasIP(SQLObject):
     playerid = IntCol()
@@ -68,11 +99,14 @@ def processHeader(row):
         head[row[i]]=i
     return head
 
-def import_server():
-    reader = csv.reader(open('server.csv', 'rb'))
+def import_server(filename):
+    reader = csv.reader(open(filename, 'rb'))
     header = {}
     c = 0
     print "Procesando servers"
+    
+    #trans.begin()
+    
     for row in reader:
         if header:
             c+=1
@@ -86,7 +120,7 @@ def import_server():
                         'onlineplayers':none_to_int(row[header['players']]),
                         'pluginversion':row[header['pluginversion']],
                         'isdirty':False,
-                        'gaekey':none_to_int(row[header['key']]),
+                        'gaekey':row[header['key']],
                         'maxlevel':none_to_int(row[header['maxlevel']]),
                         'uid':row[header['uid']]}
                         
@@ -97,31 +131,38 @@ def import_server():
         else:
             header = processHeader(row)
     
-    trans.commit()
+    #trans.commit(close=True)
     
     print "%d servers importados" % c
     
-def import_player():
-    reader = csv.reader(open('player.csv', 'rb'))
+def import_player(filename):
+    reader = csv.reader(open(filename, 'rb'))
     serverCache = {}
     header = {}
     c=0
+    
+    print "Procesando players"
+    
+    #trans.begin()
+    
     for row in reader:
         if header:
             # find the associated server
+            server = None
             if serverCache.has_key(row[header['server']]):
                 server = serverCache[row[header['server']]]
             else:
-                server = Server.selectBy(gaekey=row[header['server']])[0]
+                servers = list(Server.selectBy(gaekey=row[header['server']]))
+                if len(servers)>0: server = servers[0]
             if server:
                 c+=1
                 serverCache[row[header['server']]] = server
                 
-                if row[header['note']] != '':
-                    note != transform_datetime(row[header['updated']])
-                else:
-                    note = None
-                    
+                #if row[header['note']] != '':
+                #    note != transform_datetime(row[header['updated']])
+                #else:
+                note = None
+
                 data = {'serverid':server.id,
                         'guid':row[header['guid']],
                         'nickname':row[header['nickname']],
@@ -138,34 +179,158 @@ def import_player():
                 insert = Insert('player', values = data)
                 query = connection.sqlrepr(insert)
                 connection.query(query)
-                
+
                 # commit every 500 players
                 if c % 500 == 0:
                     print "Processing %d" % c
-                    trans.commit()
+                    #trans.commit()
 
             else:
                 print "Server %s not found" % row[header['server']]
         else:
             header = processHeader(row)
             
-    trans.commit()
+    #trans.commit(close=True)
     
     print "%d players importados" % c        
 
-playerCache = {}
+enminutostrans = {'year': 525948.766, 'day': 1440, 'week': 10080, 'minute': 1, 'hour': 60, 'month': 43829.0639}
+
+def enminutos(p):
+    if p.endswith('s'):
+        p = p[:-1]
+    return enminutostrans[p]
+    
+def procesarBanInfo(baninfo):
+    m = BANINFO_TEXT_PAT_FULL.match(baninfo)
+    if m:
+        created = datetime.datetime.strptime(m.group('fecha'),"%d/%m/%Y")
+        hasta = datetime.datetime.strptime(m.group('hasta'),"%d/%m/%Y %H:%M")
+        duration = (created - hasta).seconds * 60
+        reason = m.group('motivo')
+        return True, reason, duration, created
         
-def import_alias():
-    reader = csv.reader(open('alias.csv', 'rb'))
+    m = BANINFO_TEXT_PAT.match(baninfo)
+    if m:
+        created = datetime.datetime.strptime(m.group('fecha'),"%d/%m/%Y")
+        duration = 0
+        reason = m.group('motivo')
+        return True, reason, duration, created
+        
+    m = BANINFO_TEXT_PERM.match(baninfo)
+    if m:
+        created = datetime.datetime.strptime(m.group('fecha'),"%d/%m/%Y")
+        duration = 0
+        reason = m.group('motivo')
+        return True, reason, duration, created
+        
+    m = BANINFO_TEXT_TEMP.match(baninfo)
+    if m:
+        created = datetime.datetime.strptime(m.group('fecha'),"%d/%m/%Y")
+        tiempo = float(m.group('duration'))
+        periodo = m.group('periodo')
+        duration = int(tiempo * enminutos(periodo))
+        reason = m.group('motivo')
+        return True, reason, duration, created
+
+    m = BANINFO_N_PAT.match(baninfo)
+    if m:
+        created = datetime.datetime.fromtimestamp(int(m.group('fecha')))
+        reason = m.group('motivo')
+        try:
+            duration = int(m.group('duration'))
+        except:
+            duration = 0
+        return True, reason, duration, created
+        
+    m = BANINFO_PAT.match(baninfo)
+    if m:
+        created = datetime.datetime.fromtimestamp(int(m.group('fecha')))
+        reason = m.group('motivo')
+        try:
+            admin = m.group('admin')
+        except:
+            admin = None
+        try:
+            duration = int(m.group('duration'))
+        except:
+            duration = 0
+        if admin:
+            reason = "%s (%s)" % (reason, admin)
+        return True, reason, duration, created
+
+    raise Exception("No se puede verificar patron %s" % baninfo)
+    
+playerCache = {}
+    
+def create_baninfo(filename):
+    '''process the player file again to fill the penalty table'''
+    
+    reader = csv.reader(open(filename, 'rb'))
     header = {}
     c=0
+    print "Procesando penalties"
+    
+    for row in reader:
+        if header:
+            baninfo = row[header['baninfo']]
+            if baninfo == '': continue
+            player = None
+            players = list(Player.selectBy(gaekey=row[header['key']]))
+            if len(players) > 0:
+                player = players[0]
+            if player:
+                playerCache[row[header['key']]] = player
+                try:
+                    status, reason, duration, created = procesarBanInfo(baninfo)
+                    if status:
+                        data = {'playerid':player.id,
+                            'type': 0,
+                            'reason': reason,
+                            'duration': duration,
+                            'created': created,
+                            'updated': created,
+                            'synced': True,
+                            'active': True
+                            }
+                    
+                        insert = Insert('penalty', values = data)
+                        query = connection.sqlrepr(insert)
+                        connection.query(query)
+                        c+=1
+                        # commit every 500 players
+                        if c % 100 == 0:
+                            print "Processing %d" % c
+                            #trans.commit()
+                except Exception, e:
+                    print "%s playerid %s" % (str(e),player.id)
+                    
+            else:
+                print "Player %s not found" % row[header['key']]
+        else:
+            header = processHeader(row)
+            
+    #trans.commit()
+    
+    print "%d penalties generados" % c   
+            
+def import_alias(filename):
+    reader = csv.reader(open(filename, 'rb'))
+    header = {}
+    c=0
+    
+    print "Procesando aliases"
+    
     for row in reader:
         if header:
             # find the associated server
-            if playerCache.has_key(row[header['player']]):
-                player = playerCache[row[header['player']]]
+            player = None
+            if playerCache.has_key(row[header['key']]):
+                player = playerCache[row[header['key']]]
             else:
-                player = Player.selectBy(gaekey=row[header['player']])[0]
+                players = list(Player.selectBy(gaekey=row[header['key']]))
+                if len(players) > 0:
+                    player = players[0]
             if player:
                 c+=1
                 playerCache[row[header['player']]] = player
@@ -175,37 +340,43 @@ def import_alias():
                         'count':none_to_int(row[header['count']]),
                         'created':transform_datetime(row[header['created']]),
                         'updated':transform_datetime(row[header['updated']]),
-                        'ngrams':row[header['ngrams']]}
+                        'normalized':normalize(row[header['nickname']])}
                         
                 insert = Insert('alias', values = data)
                 query = connection.sqlrepr(insert)
                 connection.query(query)
                 
                 # commit every 500 players
-                if c % 500 == 0:
+                if c % 100 == 0:
                     print "Processing %d" % c
-                    trans.commit()
+                    #trans.commit()
 
             else:
                 print "Player %s not found" % row[header['player']]
         else:
             header = processHeader(row)
             
-    trans.commit()
+    #trans.commit()
     
     print "%d aliases importados" % c   
            
-def import_aliasip():
-    reader = csv.reader(open('aliasip.csv', 'rb'))
+def import_aliasip(filename):
+    reader = csv.reader(open(filename, 'rb'))
     header = {}
     c=0
+    
+    print "Procesando ip aliases"
+    
     for row in reader:
         if header:
             # find the associated server
-            if playerCache.has_key(row[header['player']]):
-                player = playerCache[row[header['player']]]
+            player = None
+            if playerCache.has_key(row[header['key']]):
+                player = playerCache[row[header['key']]]
             else:
-                player = Player.selectBy(gaekey=row[header['player']])[0]
+                players = list(Player.selectBy(gaekey=row[header['key']]))
+                if len(players) > 0:
+                    player = players[0]
             if player:
                 c+=1
                 playerCache[row[header['player']]] = player
@@ -221,25 +392,27 @@ def import_aliasip():
                 connection.query(query)
                 
                 # commit every 500 players
-                if c % 500 == 0:
+                if c % 100 == 0:
                     print "Processing %d" % c
-                    trans.commit()
+                    #trans.commit()
 
             else:
                 print "Player %s not found" % row[header['player']]
         else:
             header = processHeader(row)
             
-    trans.commit()
+    #trans.commit()
     
     print "%d ip aliases importados" % c  
     
-connection = connectionForURI('mysql://test:test@166.40.231.124/test?debug=1')
-connection.autoCommit = False
-trans = connection.transaction()
-sqlhub.processConnection = trans
+connection = connectionForURI('mysql://test:test@166.40.231.124/test')
+#connection.autoCommit = False
+#trans = connection.transaction()
+#sqlhub.processConnection = trans
+sqlhub.processConnection = connection
 
-import_server()
-import_player()
-import_alias()
-import_aliasip()
+#import_server('server.csv')
+#import_player('player.csv')
+create_baninfo('player.csv')
+#import_alias('alias.csv')
+#import_aliasip('aliasip.csv')
