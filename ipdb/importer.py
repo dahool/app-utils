@@ -22,6 +22,11 @@ def bool_to_int(value):
             return 1
     return 0
     
+def none_to_long(value):
+    if value == None or value == '':
+        return 0
+    return long(value)
+    
 def none_to_int(value):
     if value == None or value == '':
         return 0
@@ -88,7 +93,7 @@ class Alias(SQLObject):
     
 class AliasIP(SQLObject):
     playerid = IntCol()
-    ip = IntCol()
+    ip = StringCol()
     count = IntCol()
     updated = TimestampCol()
     created = TimestampCol()
@@ -325,15 +330,16 @@ def import_alias(filename):
         if header:
             # find the associated server
             player = None
-            if playerCache.has_key(row[header['key']]):
-                player = playerCache[row[header['key']]]
+            key = extractPlayerParent(row[header['key']])
+            if playerCache.has_key(key):
+                player = playerCache[key]
             else:
-                players = list(Player.selectBy(gaekey=row[header['key']]))
+                players = list(Player.selectBy(gaekey=key))
                 if len(players) > 0:
                     player = players[0]
             if player:
                 c+=1
-                playerCache[row[header['player']]] = player
+                playerCache[key] = player
                 
                 data = {'playerid':player.id,
                         'nickname':row[header['nickname']],
@@ -352,14 +358,18 @@ def import_alias(filename):
                     #trans.commit()
 
             else:
-                print "Player %s not found" % row[header['player']]
+                print "Player %s not found" % key
         else:
             header = processHeader(row)
             
     #trans.commit()
     
     print "%d aliases importados" % c   
-           
+
+def extractPlayerParent(key):
+    values = key.split(":")
+    return ":".join(values[2:])
+        
 def import_aliasip(filename):
     reader = csv.reader(open(filename, 'rb'))
     header = {}
@@ -371,18 +381,19 @@ def import_aliasip(filename):
         if header:
             # find the associated server
             player = None
-            if playerCache.has_key(row[header['key']]):
-                player = playerCache[row[header['key']]]
+            key = extractPlayerParent(row[header['key']])
+            if playerCache.has_key(key):
+                player = playerCache[key]
             else:
-                players = list(Player.selectBy(gaekey=row[header['key']]))
+                players = list(Player.selectBy(gaekey=key))
                 if len(players) > 0:
                     player = players[0]
             if player:
                 c+=1
-                playerCache[row[header['player']]] = player
+                playerCache[key] = player
                 
                 data = {'playerid':player.id,
-                        'ip':none_to_int(row[header['ip']]),
+                        'ip':none_to_long(row[header['ip']]),
                         'count':none_to_int(row[header['count']]),
                         'created':transform_datetime(row[header['created']]),
                         'updated':transform_datetime(row[header['updated']])}
@@ -397,7 +408,7 @@ def import_aliasip(filename):
                     #trans.commit()
 
             else:
-                print "Player %s not found" % row[header['player']]
+                print "Player %s not found" % key
         else:
             header = processHeader(row)
             

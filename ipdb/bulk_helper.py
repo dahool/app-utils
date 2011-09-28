@@ -65,6 +65,9 @@ def reverse_str_to_key(value):
         
     return datastore.Key.from_path(*decoded_value)
 
+def reverse_str_to_keystr(value):
+    return str(reverse_str_to_key(value))
+  
 def key_to_b64(value):
     '''
     encodes/decodes a key to/from urlsafe base64

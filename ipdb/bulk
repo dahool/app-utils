@@ -1,5 +1,5 @@
 #!/bin/bash
-appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=Server --url=https://ipdburt.appspot.com/remote_api --filename=server.csv
-appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=Player --url=https://ipdburt.appspot.com/remote_api --filename=player.csv
-appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=PlayerAlias --url=https://ipdburt.appspot.com/remote_api --filename=alias.csv
-appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=AliasIP --url=https://ipdburt.appspot.com/remote_api --filename=aliasip.csv
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=Server --url=https://ipdburt.appspot.com/remote_api --filename=server.csv --db_filename=server-progress.sql3 --result_db_filename=server-results.sql3
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=Player --url=https://ipdburt.appspot.com/remote_api --filename=player.csv --db_filename=player-progress.sql3 --result_db_filename=player-results.sql3
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=PlayerAlias --url=https://ipdburt.appspot.com/remote_api --filename=alias.csv --db_filename=alias-progress.sql3 --result_db_filename=alias-results.sql3
+appcfg.py download_data --config_file=bulkloader.yaml --application=ipdburt --kind=AliasIP --url=https://ipdburt.appspot.com/remote_api --filename=aliasip.csv --db_filename=aliasip-progress.sql3 --result_db_filename=aliasip-results.sql3
