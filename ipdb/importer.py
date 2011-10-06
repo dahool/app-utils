@@ -33,16 +33,17 @@ def none_to_int(value):
     return int(value)
 
 def normalize(value):
-    '''intentaremos matener la misma logica que la version java
-    durante la importacion'''
-    vals = [('@','a'),('`',''),('*',''),('<',''),('>',''),('&',''),
-            ('_',' '),('-',' '),('+',' '),('{',''),('}',''),("'",''),
-            ('|',''),('!',''),('[',''),(']',''),('.',''),(',',''),('#','')
-            (':',''),('0','o'),('1','i'),('3','e'),('4','a'),('5','s'),('7','t'),]
-    value = value.lower()
-    for r in vals:
-        value = value.replace(r[0],r[1])
-    return value
+    s = value.replace("&amp;", "&")
+    s = s.replace("amp;", "&")
+    s = s.replace("&gt;", ">")
+    s = s.replace("gt;", ">")
+    s = s.replace("&lt;", "<")
+    s = s.replace("lt;", "<")
+    s = s.replace("&<", "<")
+    s = s.replace("&>", ">")
+    s = s.replace("\>", ">")
+    s = s.replace("\<", "<")
+    return s
     
 class Server(SQLObject):
     uid = StringCol()
@@ -91,6 +92,9 @@ class Alias(SQLObject):
     created = TimestampCol()
     normalized = StringCol()
     
+    class sqlmeta:
+        lazyUpdate = True
+            
 class AliasIP(SQLObject):
     playerid = IntCol()
     ip = StringCol()
@@ -340,17 +344,25 @@ def import_alias(filename):
             if player:
                 c+=1
                 playerCache[key] = player
-                
-                data = {'playerid':player.id,
-                        'nickname':row[header['nickname']],
+                name = normalize(row[header['nickname']])
+                aliases = list(Alias.selectBy(playerid=player.id, nickname=name))
+                if len(aliases) > 0:
+                    alias = aliases[0]
+                    if alias.updated < transform_datetime(row[header['updated']]):
+                        alias.updated = transform_datetime(row[header['updated']])
+                    alias.count = alias.count + none_to_int(row[header['count']])
+                    alias.syncUpdate()
+                    print "Found duplicated %s" % name
+                else:
+                    data = {'playerid':player.id,
+                        'nickname': name,
                         'count':none_to_int(row[header['count']]),
                         'created':transform_datetime(row[header['created']]),
                         'updated':transform_datetime(row[header['updated']]),
-                        'normalized':normalize(row[header['nickname']])}
-                        
-                insert = Insert('alias', values = data)
-                query = connection.sqlrepr(insert)
-                connection.query(query)
+                        'normalized': ''}
+                    insert = Insert('alias', values = data)
+                    query = connection.sqlrepr(insert)
+                    connection.query(query)
                 
                 # commit every 500 players
                 if c % 100 == 0:
