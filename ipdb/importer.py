@@ -1,8 +1,17 @@
+import sys
+import os
+
+DIR_PATH = "C:/Program Files/Google"
+APPDIR = os.path.join(DIR_PATH, 'google_appengine')
+
+sys.path.append(APPDIR)
+
 import csv
 from sqlobject import *
 from sqlobject.sqlbuilder import *
 import datetime
 import re
+import bulk_helper as helper
 
 BANINFO_TEXT_PAT_FULL = re.compile('^(Baneado el)\s(?P<fecha>\d{2}/\d{2}/\d{4})\s(por)\s(?P<motivo>.*)\s(hasta el)\s(?P<hasta>\d{2}/\d{2}/\d{4}\s\d{2}:\d{2})$')
 BANINFO_TEXT_PAT = re.compile('^(Baneado el)\s(?P<fecha>\d{2}/\d{2}/\d{4})\s(por)\s(?P<motivo>.*)$')
@@ -129,7 +138,7 @@ def import_server(filename):
                         'onlineplayers':none_to_int(row[header['players']]),
                         'pluginversion':row[header['pluginversion']],
                         'isdirty':False,
-                        'gaekey':row[header['key']],
+                        'gaekey':str(helper.reverse_str_to_appid_key(row[header['key']], 'ipdburt')),
                         'maxlevel':none_to_int(row[header['maxlevel']]),
                         'uid':row[header['uid']]}
                         
@@ -158,14 +167,15 @@ def import_player(filename):
         if header:
             # find the associated server
             server = None
-            if serverCache.has_key(row[header['server']]):
-                server = serverCache[row[header['server']]]
+            serverkey = str(helper.reverse_str_to_appid_key(row[header['server']], 'ipdburt'))
+            if serverCache.has_key(serverkey):
+                server = serverCache[serverkey]
             else:
-                servers = list(Server.selectBy(gaekey=row[header['server']]))
+                servers = list(Server.selectBy(gaekey=serverkey))
                 if len(servers)>0: server = servers[0]
             if server:
                 c+=1
-                serverCache[row[header['server']]] = server
+                serverCache[serverkey] = server
                 
                 #if row[header['note']] != '':
                 #    note != transform_datetime(row[header['updated']])
@@ -183,7 +193,7 @@ def import_player(filename):
                         'created':transform_datetime(row[header['created']]),
                         'updated':transform_datetime(row[header['updated']]),
                         'note':note,
-                        'gaekey':row[header['key']]}
+                        'gaekey':str(helper.reverse_str_to_appid_key(row[header['key']], 'ipdburt'))}
                         
                 insert = Insert('player', values = data)
                 query = connection.sqlrepr(insert)
@@ -285,11 +295,12 @@ def create_baninfo(filename):
             baninfo = row[header['baninfo']]
             if baninfo == '': continue
             player = None
-            players = list(Player.selectBy(gaekey=row[header['key']]))
+            playerkey = str(helper.reverse_str_to_appid_key(row[header['key']], 'ipdburt'))
+            players = list(Player.selectBy(gaekey=playerkey))
             if len(players) > 0:
                 player = players[0]
             if player:
-                playerCache[row[header['key']]] = player
+                playerCache[playerkey] = player
                 try:
                     status, reason, duration, created = procesarBanInfo(baninfo)
                     if status:
@@ -332,18 +343,18 @@ def import_alias(filename):
     
     for row in reader:
         if header:
-            # find the associated server
             player = None
             key = extractPlayerParent(row[header['key']])
-            if playerCache.has_key(key):
-                player = playerCache[key]
+            playerkey = str(helper.reverse_str_to_appid_key(key, 'ipdburt'))
+            if playerCache.has_key(playerkey):
+                player = playerCache[playerkey]
             else:
-                players = list(Player.selectBy(gaekey=key))
+                players = list(Player.selectBy(gaekey=playerkey))
                 if len(players) > 0:
                     player = players[0]
             if player:
                 c+=1
-                playerCache[key] = player
+                playerCache[playerkey] = player
                 name = normalize(row[header['nickname']])
                 aliases = list(Alias.selectBy(playerid=player.id, nickname=name))
                 if len(aliases) > 0:
@@ -394,15 +405,16 @@ def import_aliasip(filename):
             # find the associated server
             player = None
             key = extractPlayerParent(row[header['key']])
-            if playerCache.has_key(key):
-                player = playerCache[key]
+            playerkey = str(helper.reverse_str_to_appid_key(key, 'ipdburt'))
+            if playerCache.has_key(playerkey):
+                player = playerCache[playerkey]
             else:
-                players = list(Player.selectBy(gaekey=key))
+                players = list(Player.selectBy(gaekey=playerkey))
                 if len(players) > 0:
                     player = players[0]
             if player:
                 c+=1
-                playerCache[key] = player
+                playerCache[playerkey] = player
                 
                 data = {'playerid':player.id,
                         'ip':none_to_long(row[header['ip']]),

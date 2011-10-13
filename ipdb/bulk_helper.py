@@ -49,6 +49,9 @@ def key_to_reverse_str(value):
     return ':'.join(value)
 
 def reverse_str_to_key(value):
+    return reverse_key(value, None)
+
+def reverse_str_to_appid_key(value, appid):
     '''
     this is a handy way to encode/decode a key so that it is still
     human readable, but contains all info (including parents)
@@ -62,11 +65,19 @@ def reverse_str_to_key(value):
     for i in range(len(decoded_value)):
         if decoded_value[i].endswith('*'):
             decoded_value[i] = long(decoded_value[i].rstrip('*'))
-        
-    return datastore.Key.from_path(*decoded_value)
-
+      
+    kw = {'_app': appid}
+    return datastore.Key.from_path(*decoded_value, **kw)
+  
 def reverse_str_to_keystr(value):
     return str(reverse_str_to_key(value))
+  
+def key_to_str(value):
+    if (not value):
+        return ''
+    elif isinstance(value, datastore.Key):
+        return str(value)
+    return value
   
 def key_to_b64(value):
     '''

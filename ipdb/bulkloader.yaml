@@ -17,7 +17,7 @@ transformers:
     - property: __key__
       external_name: key
       export_transform: bulk_helper.key_to_reverse_str
-
+      
     - property: count
       external_name: count
       import_transform: transform.none_if_empty(int)
@@ -39,7 +39,7 @@ transformers:
     - property: player
       external_name: player
       export_transform: bulk_helper.key_to_reverse_str
-      
+            
 - kind: PlayerAlias
   connector: csv
   connector_options:
@@ -48,7 +48,7 @@ transformers:
     - property: __key__
       external_name: key
       export_transform: bulk_helper.key_to_reverse_str
-
+      
     - property: count
       external_name: count
       import_transform: transform.none_if_empty(int)
@@ -65,11 +65,11 @@ transformers:
     - property: player
       external_name: player
       export_transform: bulk_helper.key_to_reverse_str
-
+      
     - property: server
       external_name: server
       export_transform: bulk_helper.key_to_reverse_str
-
+      
     - property: updated
       external_name: updated
       import_transform: transform.import_date_time('%Y-%m-%dT%H:%M:%S')
@@ -83,7 +83,7 @@ transformers:
     - property: __key__
       external_name: key
       export_transform: bulk_helper.key_to_reverse_str
-
+      
     - property: baninfo
       external_name: baninfo
 
@@ -124,7 +124,7 @@ transformers:
     - property: server
       external_name: server
       export_transform: bulk_helper.key_to_reverse_str
-
+    
     - property: updated
       external_name: updated
       import_transform: transform.import_date_time('%Y-%m-%dT%H:%M:%S')
